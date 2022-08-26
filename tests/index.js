@@ -175,3 +175,18 @@ QUnit.test("upon() performs callback 'soon' after a delayed test-condition is tr
 		});
 	})
 });
+
+QUnit.test("Objects with on() events can be serialized without pollution", function (assert) {
+	const o = {
+		value: 'abc'
+	};
+
+	on(o, 'someEvent').then(() => {
+		// do nothing
+	});
+
+	const serialization = JSON.stringify(o);
+	const deserialized = JSON.parse(serialization);
+
+	assert.deepEqual(o, deserialized);
+});
