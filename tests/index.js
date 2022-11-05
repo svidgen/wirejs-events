@@ -28,7 +28,7 @@ QUnit.test("on() : subscribers are called exactly once per fire()", function (as
 
 });
 
-QUnit.test("once() : single-fire events subscribers are called exactly once", function (assert) {
+QUnit.test("once() : single-fire events subscribers are called exactly once", async function (assert) {
 	var o = {};
 	var s1 = 0;
 	var s2 = 0;
@@ -36,6 +36,8 @@ QUnit.test("once() : single-fire events subscribers are called exactly once", fu
 	once(o, 'action').then(function () { s1++; }, true);
 	once(o, 'action').then(function () { s2++; }, true);
 	once(o, 'action').fire()
+
+	await Promise.resolve();
 
 	assert.equal(s1, 1, "first subscriber notified exactly once");
 	assert.equal(s2, 1, "second subscriber notified exactly once");
@@ -75,61 +77,7 @@ QUnit.test("on() with delayed callback passes parameters", async function(assert
 	})
 });
 
-QUnit.test("on().intercept(interceptor) stops an event", function (assert) {
-	var o = {};
-	var subscriberCalled = 0;
-	var interceptorCalled = 0;
-
-	on(o, 'action').then(function () { subscriberCalled++; });
-	on(o, 'action').intercept(function (evt) { interceptorCalled++; });
-	on(o, 'action').fire();
-
-	assert.equal(interceptorCalled, 1, "the interceptor was called");
-	assert.equal(subscriberCalled, 0, "the subscriber was not called");
-});
-
-QUnit.test("on().intercept(interceptor) passes a resume()able event [proxy] to the interceptor", function (assert) {
-	var o = {};
-	var subscriberCalled = 0;
-	var interceptorCalled = 0;
-
-	on(o, 'action').then(function () { subscriberCalled = subscriberCalled * 2; });
-	on(o, 'action').intercept(function (evt) { interceptorCalled = 1; subscriberCalled = 1; evt.resume(); });
-	on(o, 'action').fire();
-
-	assert.equal(interceptorCalled, 1, "the interceptor was called");
-	assert.equal(subscriberCalled, 2, "the subscriber called, and the interceptor was called first");
-});
-
-QUnit.test("on().intercept(interceptor) succeeds with multiple true-returning intercetpors", function (assert) {
-	var o = {};
-	var subscriberCalled = 0;
-	var interceptorCalled = 0;
-
-	on(o, 'action').then(function () { subscriberCalled = subscriberCalled * 2; });
-	on(o, 'action').intercept(function (evt) { interceptorCalled++; subscriberCalled++; evt.resume(); });
-	on(o, 'action').intercept(function (evt) { interceptorCalled++; subscriberCalled++; evt.resume(); });
-	on(o, 'action').fire();
-
-	assert.equal(interceptorCalled, 2, "both interceptors were called");
-	assert.equal(subscriberCalled, 4, "the subscriber called, and both interceptors were called first");
-});
-
-QUnit.test("on().intercept(interceptor) stops entirely on the first non-resuming interceptor", function (assert) {
-	var o = {};
-	var subscriberCalled = 0;
-	var interceptorCalled = 0;
-
-	on(o, 'action').then(function () { subscriberCalled++; });
-	on(o, 'action').intercept(function (evt) { interceptorCalled++; });
-	on(o, 'action').intercept(function (evt) { interceptorCalled++; evt.resume(); });
-	on(o, 'action').fire();
-
-	assert.equal(interceptorCalled, 1, "only one interceptor was called");
-	assert.equal(subscriberCalled, 0, "the subscriber was not called");
-});
-
-QUnit.test("onready() operates like a single-fire event", function (assert) {
+QUnit.test("onready() operates like a single-fire event", async function (assert) {
 	var o = {};
 	var s1 = 0;
 	var s2 = 0;
@@ -137,6 +85,8 @@ QUnit.test("onready() operates like a single-fire event", function (assert) {
 	onready(o).then(function () { s1++; });
 	onready(o).then(function () { s2++; });
 	onready(o).fire();
+
+	await Promise.resolve();
 
 	assert.ok(s1 == 1, "first subscriber notified exactly once");
 	assert.ok(s2 == 1, "second subscriber notified exactly once");
@@ -189,4 +139,38 @@ QUnit.test("Objects with on() events can be serialized without pollution", funct
 	const deserialized = JSON.parse(serialization);
 
 	assert.deepEqual(o, deserialized);
+});
+
+QUnit.test("Event streams can be stopped with stop()", function (assert) {
+	const o = {};
+	let fired = 0;
+
+	const stream = on(o, 'happening').then(() => fired++);
+
+	// sanity check
+	on(o, 'happening').fire();
+	assert.equal(fired, 1, "the stream should have fired once");
+
+	// test
+	stream.stop();
+	on(o, 'happening').fire();
+
+	assert.equal(fired, 1, "the stream should not have fired after ending");
+});
+
+QUnit.test("Event streams can be canceled by an `until` condition", function (assert) {
+	// In other words, the stream can be auto-stopped when a given
+	// object ceases to exist.
+
+	const o = {};
+	let fired = 0;
+
+	on(o, 'happening').then(() => fired++).until(() => fired > 1);
+
+	// sanity check
+	on(o, 'happening').fire();
+	on(o, 'happening').fire();
+	on(o, 'happening').fire();
+	on(o, 'happening').fire();
+	assert.equal(fired, 2, "the stream should have fired exactly twice");
 });

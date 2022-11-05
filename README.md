@@ -49,7 +49,7 @@ const { once } = require('wirejs-events');
 once(someObject, 'eventName').fire();
 
 // subscribe
-once(someObject, 'eventName').then(()) => {
+once(someObject, 'eventName').then(() => {
 	console.log("the thing happened. or already happened. it doesn't matter.")
 });
 ```
@@ -81,7 +81,7 @@ npm run test:web
 **Or in the CLI**
 
 ```
-npm run test -- --watch
+npm run test
 ```
 
 And then just write code and stuff. (And submit a pull request.)
